@@ -20,16 +20,14 @@ import sys
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
 
-# ✅ CAMBIO IMPORTANTE PARA GITHUB ACTIONS:
-# En vez de dejar usuario/clave en el código, los leemos desde variables de entorno (Secrets)
+# ✅ IMPORTANTE: usar Secrets / Variables de entorno (GitHub Actions)
 EMAIL_USER = os.environ.get("EMAIL_USER", "").strip()
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "").strip()
 EMAIL_RECIPIENT = os.environ.get("EMAIL_RECIPIENT", "").strip()
 
-# Validación simple de secrets (evita que falle raro)
 if not EMAIL_USER or not EMAIL_PASSWORD or not EMAIL_RECIPIENT:
     print("❌ Faltan variables de entorno EMAIL_USER / EMAIL_PASSWORD / EMAIL_RECIPIENT")
-    print("👉 Si estás en GitHub Actions: Repo → Settings → Secrets and variables → Actions")
+    print("👉 En GitHub: Repo → Settings → Secrets and variables → Actions")
     sys.exit(1)
 
 # Configuración de archivos
@@ -47,8 +45,8 @@ PRODUCTO_1_NOMBRE = "Big Mac Combo"  # <<-- NOMBRE ÚNICO PARA EL COMBO
 API_MCD_URL_1 = f"https://api-mcd-ecommerce-ar.appmcdonalds.com/catalog/product/{PRODUCTO_1_ID}/detail?restaurant={RESTAURANT_ID}&area=MOP&outdaypart=true"
 
 # Producto 2: Big Mac Hamburguesa Sola
-PRODUCTO_2_ID = "220"
-PRODUCTO_2_NOMBRE = "Big Mac solo hamburguesa"
+PRODUCTO_2_ID = "220"  # ID del producto
+PRODUCTO_2_NOMBRE = "Big Mac solo hamburguesa"  # Nombre solicitado
 API_MCD_URL_2 = f"https://api-mcd-ecommerce-ar.appmcdonalds.com/catalog/product/{PRODUCTO_2_ID}/detail?restaurant={RESTAURANT_ID_BURGER}&area=MOP&outdaypart=true"
 
 PRODUCTOS_A_RASTREAR = [
@@ -58,8 +56,8 @@ PRODUCTOS_A_RASTREAR = [
 
 # MODIFICACIÓN CLAVE: Mapeo para unificar nombres históricos del COMBO Big Mac en el CSV
 UNIFIED_NAMES = {
-    "Big Mac Combo Mediano": PRODUCTO_1_NOMBRE,
-    "Big Mac": PRODUCTO_1_NOMBRE,
+    "Big Mac Combo Mediano": PRODUCTO_1_NOMBRE,  # Nombre anterior del combo
+    "Big Mac": PRODUCTO_1_NOMBRE,               # Nombre genérico que devuelve la API
     # Si ves otros nombres para el combo en tu CSV, agrégalos aquí.
 }
 
@@ -151,8 +149,8 @@ def cargar_o_crear_maestro():
     if os.path.exists(MASTER_CSV):
         try:
             df = pd.read_csv(MASTER_CSV)
-            # Normalizar para que la fecha sea solo el día (hora 00:00:00)
-            df['Fecha'] = pd.to_datetime(df['Fecha']).dt.normalize()
+            df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce').dt.normalize()
+            df = df.dropna(subset=['Fecha'])
             return df
         except Exception as e:
             print(f"⚠️ Error al leer el CSV: {e}. Creando un DataFrame vacío.")
@@ -180,8 +178,11 @@ def guardar_datos(df, nombre, precio_ars, dolar_ars):
     now = datetime.now()
     hoy = now.date()
 
+    # ✅ FIX: asegurar que Fecha sea datetime siempre ANTES de usar .dt
     df_temp = df.copy()
     if not df_temp.empty:
+        df_temp['Fecha'] = pd.to_datetime(df_temp['Fecha'], errors='coerce')
+        df_temp = df_temp.dropna(subset=['Fecha'])
         df_temp['Fecha_Dia'] = df_temp['Fecha'].dt.date
     else:
         df_temp['Fecha_Dia'] = pd.Series([], dtype='object')
@@ -202,6 +203,9 @@ def guardar_datos(df, nombre, precio_ars, dolar_ars):
         }])
 
         df_final = pd.concat([df, nueva_fila], ignore_index=True)
+        df_final['Fecha'] = pd.to_datetime(df_final['Fecha'], errors='coerce')
+        df_final = df_final.dropna(subset=['Fecha'])
+
         df_final = df_final.sort_values(by=['Fecha', 'Producto']).reset_index(drop=True)
 
         df_final.to_csv(MASTER_CSV, index=False)
@@ -220,6 +224,9 @@ def generar_reporte_y_graficos(df):
     if df.shape[0] < 1:
         print("⚠️ No hay suficientes datos para generar el reporte.")
         return None, "No hay datos."
+
+    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    df = df.dropna(subset=['Fecha'])
 
     df = df.sort_values(by=['Fecha', 'Producto']).reset_index(drop=True)
 
@@ -408,8 +415,6 @@ def generar_reporte_y_graficos(df):
     return imagenes_generadas, "Reporte generado correctamente."
 
 
-# --- Función de Email ---
-
 def enviar_email(df, imagenes_generadas):
     """Envía el email con el reporte adjunto y gráficos incrustados."""
 
@@ -421,6 +426,9 @@ def enviar_email(df, imagenes_generadas):
     # Resumen de datos para el cuerpo del email
     if not df.empty:
         hoy = datetime.now().date()
+        df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+        df = df.dropna(subset=['Fecha'])
+
         df_hoy = df[df['Fecha'].dt.date == hoy].sort_values(by='Producto')
 
         if not df_hoy.empty:
@@ -445,7 +453,6 @@ def enviar_email(df, imagenes_generadas):
     else:
         resumen_html = "<p>No hay suficientes datos históricos para mostrar un resumen.</p>"
 
-    # HTML de charts
     html_charts = ""
     for idx, item in enumerate(imagenes_generadas):
         cid_name = f"chart_{idx+1}"
@@ -527,7 +534,7 @@ def main():
     # 2. Cargar el maestro CSV
     df_maestro = cargar_o_crear_maestro()
 
-    # Unificar nombres
+    # Limpiar y unificar nombres históricos del CSV
     df_maestro = unificar_nombres_productos(df_maestro, UNIFIED_NAMES)
 
     df_actualizado = df_maestro.copy()
@@ -541,7 +548,7 @@ def main():
 
     if df_actualizado.shape[0] > 0:
         # 4. Generar Reporte, Análisis y Gráficos
-        imagenes, mensaje_reporte = generar_reporte_y_graficos(df_actualizado)
+        imagenes, _ = generar_reporte_y_graficos(df_actualizado)
 
         # 5. Enviar Reporte por Email
         enviar_email(df_actualizado, imagenes)
