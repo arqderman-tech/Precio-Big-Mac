@@ -2,14 +2,20 @@ name: Run daily script and save CSV
 
 on:
   schedule:
-    - cron: "0 12 * * *"   # 12:00 UTC (aprox 09:00 Argentina)
+    - cron: "30 12 * * *"   # 12:30 UTC = 09:30 Argentina
+    - cron: "30 12 * * 0"   # Ping semanal (domingo 09:30 ARG)
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bigmac-daily
+  cancel-in-progress: true
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repo
@@ -42,5 +48,10 @@ jobs:
 
           git add mcdonalds_precios.csv
 
-          git commit -m "Update prices CSV (daily)" || echo "No changes to commit"
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "Update prices CSV (daily)"
           git push
