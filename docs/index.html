@@ -1,0 +1,38 @@
+
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Big Mac Index AR</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+        <style>
+            body { max-width: 1000px; margin: auto; background-color: #f8f9fa; }
+            .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 20px 0; }
+            .card { background: white; padding: 20px; border-radius: 8px; border-top: 6px solid #db0007; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
+            .price { font-size: 2.2rem; font-weight: bold; color: #2d3436; }
+            .sub-price { color: #636e72; font-size: 1.1rem; }
+            .chart-box { background: white; padding: 15px; border-radius: 8px; margin-top: 20px; }
+            img { width: 100%; height: auto; border-radius: 4px; }
+            footer { text-align: center; margin-top: 50px; font-size: 0.8rem; opacity: 0.6; }
+        </style>
+    </head>
+    <body>
+        <h1>🍔 McDonald's Price Tracker</h1>
+        <p>Monitoreo automatizado de precios en Argentina. <strong>Dólar Oficial (BN): $1,435.00</strong></p>
+        <div class="grid">
+        <div class="card">
+            <h3>Big Mac Combo</h3>
+            <div class="price">$15,600.00 ARS</div>
+            <div class="sub-price">U$D 10.87</div>
+        </div>
+        <div class="card">
+            <h3>Big Mac solo hamburguesa</h3>
+            <div class="price">$8,400.00 ARS</div>
+            <div class="sub-price">U$D 5.85</div>
+        </div></div>
+        <h2>Histórico (Últimos 30 días)</h2>
+        <div class="grid"><div class="chart-box"><h4>Big Mac Combo</h4><img src="charts/trend_0.png"></div><div class="chart-box"><h4>Big Mac solo hamburguesa</h4><img src="charts/trend_1.png"></div></div>
+        <footer>Generado el 08/03/2026 19:34 | Sistema Legacy Curiosities</footer>
+    </body>
+    </html>
