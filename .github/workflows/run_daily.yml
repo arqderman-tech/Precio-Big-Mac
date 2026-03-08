@@ -1,22 +1,16 @@
-name: Run daily script and save CSV
+name: Run daily script and update Dashboard
 
 on:
   schedule:
-    - cron: "30 12 * * *"   # 12:30 UTC = 09:30 Argentina
-    - cron: "30 12 * * 0"   # Ping semanal (domingo 09:30 ARG)
+    - cron: "30 12 * * *"   # 09:30 AM Argentina
   workflow_dispatch:
 
 permissions:
   contents: write
 
-concurrency:
-  group: bigmac-daily
-  cancel-in-progress: true
-
 jobs:
   run:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -30,28 +24,27 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install requests pandas matplotlib seaborn xlsxwriter
 
       - name: Run script
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
-        run: |
-          python bigmac.py
+        run: python bigmac.py
 
-      - name: Commit updated CSV to repo
+      - name: Commit and Push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add mcdonalds_precios.csv
-
+          
+          # Añadir el CSV y la carpeta docs (web e imágenes)
+          git add mcdonalds_precios.csv docs/
+          
           if git diff --staged --quiet; then
-            echo "No changes to commit"
-            exit 0
+            echo "No hay cambios para commitear"
+          else
+            git commit -m "Update prices and Dashboard (daily)"
+            git push
           fi
-
-          git commit -m "Update prices CSV (daily)"
-          git push
+          
